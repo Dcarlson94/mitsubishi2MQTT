@@ -1320,8 +1320,9 @@ void hpStatusChanged(heatpumpStatus currentStatus) {
     String mqttOutput;
     serializeJson(rootInfo, mqttOutput);
 
-    if (!mqtt_client.publish_P(ha_state_topic.c_str(), mqttOutput.c_str(), false)) {
-      if (_debugMode) mqtt_client.publish(ha_debug_topic.c_str(), (char*)("Failed to publish hp status change"));
+    if (_HA_ENABLED)
+	if (!mqtt_client.publish_P(ha_state_topic.c_str(), mqttOutput.c_str(), false)) {
+		if (_debugMode) mqtt_client.publish(ha_debug_topic.c_str(), (char*)("Failed to publish hp status change"));
     }
 
     lastTempSend = millis();
@@ -1381,9 +1382,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (modeUpper == "OFF") {
       hp.setPowerSetting("OFF");
       hp.update();
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gActive_topic.c_str(), (char*)("false"));
     } else if (modeUpper == "ON") {
       hp.setPowerSetting("ON");
       hp.update();
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gActive_topic.c_str(), (char*)("true"));
     }
   }
   else if (strcmp(topic, ha_mode_set_topic.c_str()) == 0) {
@@ -1394,6 +1399,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       rootInfo["action"] = "off";
       hpSendLocalState();
       hp.setPowerSetting("OFF");
+	if(_hb_support_enabled) {
+	    mqtt_client.publish(hb_gActive_topic.c_str(), (char*)("false"));
+	    mqtt_client.publish(hb_gMode_topic.c_str(), (char*)("INACTIVE"));
+	}
     } else {
       if (modeUpper == "HEAT_COOL") {
         rootInfo["mode"] = "heat_cool";
@@ -1417,7 +1426,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
       hpSendLocalState();
       hp.setPowerSetting("ON");
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gActive_topic.c_str(), (char*)("true"));
       hp.setModeSetting(modeUpper.c_str());
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gMode_topic.c_str(), modeUpper.c_str()));
     }
     hp.update();
   }
@@ -1433,18 +1446,24 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     hpSendLocalState();
     hp.setTemperature(temperature_c);
     hp.update();
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gTemp_topic.c_str(), (convertCelsiusToLocalUnit(temperature_c, useFahrenheit)).c_str());
   }
   else if (strcmp(topic, ha_fan_set_topic.c_str()) == 0) {
     rootInfo["fan"] = (String) message;
     hpSendLocalState();
     hp.setFanSpeed(message);
     hp.update();
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gTemp_topic.c_str(), message.c_str());
   }
   else if (strcmp(topic, ha_vane_set_topic.c_str()) == 0) {
     rootInfo["vane"] = (String) message;
     hpSendLocalState();
     hp.setVaneSetting(message);
     hp.update();
+	if(_hb_support_enabled)
+	    mqtt_client.publish(hb_gTemp_topic.c_str(), message.c_str());
   }
   else if (strcmp(topic, ha_wideVane_set_topic.c_str()) == 0) {
     rootInfo["wideVane"] = (String) message;
